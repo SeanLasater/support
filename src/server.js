@@ -16,74 +16,16 @@ import {
 } from 'discord-interactions';
 
 import { 
-  RACERESTRICTIONS_COMMAND,
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
-  HOSTARACE_COMMAND,
 } from './commands.js';
 
-import { DAMAGE_CHOICES } from './damageData.js';
-import { TRACK_CHOICES } from './transData.js';
-import { TIRE_CHOICES } from './downforceData.js';
 import { JsonResponse } from './utils.js';
 
 // ──────────────────────────────────────────────────────────────
-// RACE RESTRICTIONS COMMAND HANDLER
-// This function processes the /race-restrictions command and returns a formatted restrictions message.
+// SUPPORT INTAKE PROCESSING
 // ──────────────────────────────────────────────────────────────
-
-function handleRaceRestrictionsCommand(interaction) {
-  const { data } = interaction;
-  const options = Object.fromEntries((data.options ?? []).map(opt => [opt.name, opt.value]));
-  const name = options.name || '';
-  const classOrCar = options.class || '';
-  const tyreValue = options.tyre || '';
-  const prohibited = options.prohibited || '';
-  const damageValue = options.damage || '';
-  const notes = options.notes || '';
-
-  // Get current day of the month and add ordinal suffix
-  const today = new Date();
-  const dayOfMonth = today.getDate();
-  
-  // Function to add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
-  function getOrdinalDay(n) {
-    if (n > 3 && n < 21) return `${n}th`;
-    switch (n % 10) {
-      case 1: return `${n}st`;
-      case 2: return `${n}nd`;
-      case 3: return `${n}rd`;
-      default: return `${n}th`;
-    }
-  }
-  
-  const ordinalDay = getOrdinalDay(dayOfMonth);
-
-  // Look up tire name from TIRE_CHOICES
-  const tireChoice = TIRE_CHOICES.find(t => t.value === tyreValue);
-  const tyreName = tireChoice ? tireChoice.name : tyreValue;
-
-  // Look up damage name from DAMAGE_CHOICES
-  const damageChoice = DAMAGE_CHOICES.find(d => d.value === damageValue);
-  const damageName = damageChoice ? damageChoice.name : damageValue;
-
-  // Build the description with proper formatting
-  let description = `**${name}**\n\n*Livery Required!!*\n\n**Class :** ${classOrCar}\n\n**Tyre :** ${tyreName}\n\n**Prohibited :** ${prohibited}\n\n**Damage :** ${damageName}`;
-  
-  if (notes) {
-    description += `\n\n${notes}`;
-  }
-
-  return {
-    embeds: [{
-      title: `Wednesday the ${ordinalDay} Restrictions :`,
-      description: description,
-      color: 0xff4500,
-      timestamp: new Date().toISOString(),
-    }],
-  };
-}
 
 async function sendDirectMessage(interaction, env, messagePayload) {
   const token = env.DISCORD_TOKEN;
@@ -189,15 +131,6 @@ async function findSupportChannelId(interaction, env) {
   }
 
   return findChannelIdByName(interaction, env, 'support');
-}
-
-async function findHostARaceChannelId(interaction, env) {
-  const configuredId = normalizeChannelId(env.DISCORD_HOST_A_RACE_CHANNEL_ID);
-  if (configuredId) {
-    return configuredId;
-  }
-
-  return findChannelIdByName(interaction, env, 'host-a-race');
 }
 
 async function postMessageToChannel(channelId, token, message) {
@@ -326,141 +259,6 @@ async function processSupportIntake(interaction, env, commandName, requestKind) 
   });
 }
 
-function buildHostRacePost(interaction) {
-  const options = Object.fromEntries((interaction?.data?.options ?? []).map(opt => [opt.name, opt.value]));
-  const tyreChoice = TIRE_CHOICES.find(t => t.value === options.tyre);
-  const tyreValue = tyreChoice ? tyreChoice.name : options.tyre;
-  const damageChoice = DAMAGE_CHOICES.find(d => d.value === options.damage);
-  const damageValue = damageChoice ? damageChoice.name : options.damage;
-
-  const details = [
-    { name: 'Type', value: options.type, inline: true },
-    { name: 'Track', value: options.track, inline: true },
-    { name: 'Time (PST)', value: options.time_pst, inline: true },
-  ];
-
-  if (options.psn_name) details.push({ name: 'PSN Name', value: options.psn_name, inline: true });
-  if (options.class) details.push({ name: 'Class', value: options.class, inline: true });
-  if (tyreValue) details.push({ name: 'Tyre', value: tyreValue, inline: true });
-  if (damageValue) details.push({ name: 'Damage', value: damageValue, inline: true });
-  if (options.prohibited) details.push({ name: 'Prohibited', value: options.prohibited, inline: false });
-  if (options.notes) details.push({ name: 'Notes', value: options.notes, inline: false });
-
-  return {
-    content: '🏁 New lobby is up!',
-    embeds: [
-      {
-        title: `🎮 ${options.lobby_title}`,
-        color: 0x00b894,
-        description: 'React to this post to let us know you are joining!',
-        fields: details,
-        footer: { text: 'Hosted with /host-a-race' },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-async function processHostRaceCommand(interaction, env) {
-  const username = getInteractionUsername(interaction);
-  const token = env.DISCORD_TOKEN;
-  const hostRaceChannelId = await findHostARaceChannelId(interaction, env);
-  const invokedChannelId = normalizeChannelId(interaction?.channel_id);
-
-  if (!hostRaceChannelId || !invokedChannelId || hostRaceChannelId !== invokedChannelId) {
-    await sendDirectMessage(interaction, env, {
-      content: 'Please use /host-a-race in #host-a-race so the lobby post goes to the correct channel.',
-    });
-    await sendAdminMessage(interaction, env, `⚠️ ${username} tried /${HOSTARACE_COMMAND.name} outside #host-a-race.`);
-    return;
-  }
-
-  const postContent = buildHostRacePost(interaction);
-  const posted = await postMessageToChannel(hostRaceChannelId, token, postContent);
-
-  if (posted.ok) {
-    await sendAdminMessage(interaction, env, `${username} posted /${HOSTARACE_COMMAND.name} in #host-a-race.`);
-    return;
-  }
-
-  await sendAdminMessage(interaction, env, `⚠️ Failed to post /${HOSTARACE_COMMAND.name} for ${username}: ${posted.error}`);
-  await sendDirectMessage(interaction, env, {
-    content: 'I could not post your race lobby to #host-a-race right now. Please try again shortly.',
-  });
-}
-
-// ──────────────────────────────────────────────────────────────
-// AUTOCOMPLETE INTERACTION HANDLER
-// ──────────────────────────────────────────────────────────────
-
-function handleAutocomplete(interaction) {
-  const { data } = interaction;
-  const focusedOption = data.options?.find(opt => opt.focused);
-
-  if (!focusedOption) {
-    return new JsonResponse({
-      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-      data: { choices: [] },
-    });
-  }
-
-  if (focusedOption.name === 'track') {
-    const focusedValue = focusedOption.value.toLowerCase();
-    const filtered = TRACK_CHOICES
-      .filter(track => track.name.toLowerCase().includes(focusedValue))
-      .slice(0, 25);
-
-    return new JsonResponse({
-      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-      data: {
-        choices: filtered.map(track => ({
-          name: track.name,
-          value: track.value,
-        })),
-      },
-    });
-  }
-
-  if (focusedOption.name === 'tyre') {
-    const focusedValue = String(focusedOption.value || '').toLowerCase();
-    const filtered = TIRE_CHOICES
-      .filter(tyre => tyre.name.toLowerCase().includes(focusedValue))
-      .slice(0, 25);
-
-    return new JsonResponse({
-      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-      data: {
-        choices: filtered.map(tyre => ({
-          name: tyre.name,
-          value: tyre.value,
-        })),
-      },
-    });
-  }
-
-  if (focusedOption.name === 'damage') {
-    const focusedValue = String(focusedOption.value || '').toLowerCase();
-    const filtered = DAMAGE_CHOICES
-      .filter(damage => damage.name.toLowerCase().includes(focusedValue))
-      .slice(0, 25);
-
-    return new JsonResponse({
-      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-      data: {
-        choices: filtered.map(damage => ({
-          name: damage.name,
-          value: damage.value,
-        })),
-      },
-    });
-  }
-
-  return new JsonResponse({
-    type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-    data: { choices: [] },
-  });
-}
-
 // ──────────────────────────────────────────────────────────────
 // ROUTER AND SERVER SETUP
 // ──────────────────────────────────────────────────────────────
@@ -487,20 +285,11 @@ router.post('/', async (request, env, ctx) => {
     });
   }
 
-  if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
-    return handleAutocomplete(interaction);
-  }
-
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     let messagePayload;
     let supportIntakeCommand = null;
 
     switch (interaction.data.name.toLowerCase()) {
-      case RACERESTRICTIONS_COMMAND.name.toLowerCase(): {
-        messagePayload = handleRaceRestrictionsCommand(interaction);
-        break;
-      }
-
       case CONTACTSUPPORT_COMMAND.name.toLowerCase(): {
         supportIntakeCommand = {
           commandName: CONTACTSUPPORT_COMMAND.name,
@@ -525,26 +314,12 @@ router.post('/', async (request, env, ctx) => {
         break;
       }
 
-      case HOSTARACE_COMMAND.name.toLowerCase(): {
-        supportIntakeCommand = {
-          commandName: HOSTARACE_COMMAND.name,
-          requestKind: 'Host A Race',
-        };
-        break;
-      }
-
       default:
         return new JsonResponse({ error: 'Unknown Type' }, { status: 400 });
     }
 
     const sendPromise = (async () => {
       if (supportIntakeCommand) {
-        if (supportIntakeCommand.commandName === HOSTARACE_COMMAND.name) {
-          await processHostRaceCommand(interaction, env);
-          await deleteOriginalInteractionMessage(interaction, env);
-          return;
-        }
-
         await processSupportIntake(
           interaction,
           env,

@@ -5,11 +5,9 @@
 import dotenv from 'dotenv';
 import process from 'node:process';
 import {
-  RACERESTRICTIONS_COMMAND,
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
-  HOSTARACE_COMMAND,
 } from './commands.js';
 
 /**
@@ -40,11 +38,9 @@ const response = await fetch(url, {
   },
   method: 'PUT',
   body: JSON.stringify([
-    RACERESTRICTIONS_COMMAND,
     CONTACTSUPPORT_COMMAND,
     WRITEAREVIEW_COMMAND,
     FEATUREREQUEST_COMMAND,
-    HOSTARACE_COMMAND,
   ]),
 });
 
