@@ -2,32 +2,10 @@ Custom Discord Bot in dev.
 
 ## Slash Commands
 
-### Tuning Commands
-- `/tune-downforce`
-- `/tune-camberthrust`
-- `/tune-transmission`
-- `/tune-differential`
-- `/race-restrictions`
-
 ### Support Commands
 - `/contact-support`
 - `/write-a-review`
 - `/feature-request`
-
-### Race Hosting Command
-- `/host-a-race`
-
-`/host-a-race` takes:
-- Lobby Title
-- Type (Race / Funzies / Drift)
-- Track
-- Time (PST)
-- PSN Name (optional)
-- Class (optional)
-- Tyre (optional)
-- Damage (optional)
-- Prohibited (optional)
-- Notes (optional)
 
 Each support command requires a `message` option and is intended for user input that should be routed to admins.
 

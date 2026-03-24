@@ -1,9 +1,0 @@
-# Discord bot credentials
-DISCORD_TOKEN=
-DISCORD_PUBLIC_KEY=
-DISCORD_APPLICATION_ID=
-
-# Optional but recommended channel IDs for deterministic routing
-DISCORD_SUPPORT_CHANNEL_ID=
-DISCORD_ADMIN_CHANNEL_ID=
-DISCORD_HOST_A_RACE_CHANNEL_ID=

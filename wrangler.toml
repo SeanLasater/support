@@ -1,4 +1,4 @@
-name = "stig"
+name = "support"
 main = "src/server.js"
 compatibility_date="2023-05-18"
 
@@ -8,4 +8,4 @@ compatibility_date="2023-05-18"
 # DISCORD_APPLICATION_ID
 # DISCORD_ADMIN_CHANNEL_ID
 # DISCORD_SUPPORT_CHANNEL_ID
-# DISCORD_HOST_A_RACE_CHANNEL_ID
+
