@@ -9,6 +9,7 @@ import {
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
+  BRAND_COMMAND,
 } from '../src/commands.js';
 import sinon from 'sinon';
 import server from '../src/server.js';
@@ -171,6 +172,65 @@ describe('Server', () => {
         InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
       );
       expect(body.data.flags).to.equal(InteractionResponseFlags.EPHEMERAL);
+    });
+
+    it('should handle a BRAND command interaction', async () => {
+      const interaction = {
+        type: InteractionType.APPLICATION_COMMAND,
+        data: {
+          name: BRAND_COMMAND.name,
+          options: [
+            { name: 'manufacturer', value: 'Toyota' },
+          ],
+        },
+      };
+
+      const request = {
+        method: 'POST',
+        url: new URL('/', 'http://discordo.example'),
+      };
+
+      verifyDiscordRequestStub.resolves({
+        isValid: true,
+        interaction,
+      });
+
+      const response = await server.fetch(request, {});
+      const body = await response.json();
+      expect(body.type).to.equal(
+        InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      );
+      expect(body.data.flags).to.equal(InteractionResponseFlags.EPHEMERAL);
+    });
+
+    it('should return manufacturer autocomplete choices for BRAND command', async () => {
+      const interaction = {
+        type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+        data: {
+          name: BRAND_COMMAND.name,
+          options: [
+            { name: 'manufacturer', value: 'toy', focused: true },
+          ],
+        },
+      };
+
+      const request = {
+        method: 'POST',
+        url: new URL('/', 'http://discordo.example'),
+      };
+
+      verifyDiscordRequestStub.resolves({
+        isValid: true,
+        interaction,
+      });
+
+      const response = await server.fetch(request, {});
+      const body = await response.json();
+
+      expect(body.type).to.equal(
+        InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+      );
+      expect(body.data.choices.some(choice => choice.name === 'Toyota')).to.equal(true);
     });
   });
 

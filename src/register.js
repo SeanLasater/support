@@ -8,6 +8,7 @@ import {
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
+  BRAND_COMMAND,
 } from './commands.js';
 
 /**
@@ -41,6 +42,7 @@ const response = await fetch(url, {
     CONTACTSUPPORT_COMMAND,
     WRITEAREVIEW_COMMAND,
     FEATUREREQUEST_COMMAND,
+    BRAND_COMMAND,
   ]),
 });
 

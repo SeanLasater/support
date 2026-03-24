@@ -19,8 +19,10 @@ import {
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
+  BRAND_COMMAND,
 } from './commands.js';
 
+import { BRAND_CHOICES } from './brandData.js';
 import { JsonResponse } from './utils.js';
 
 // ──────────────────────────────────────────────────────────────
@@ -224,6 +226,59 @@ function buildSupportForwardMessage(interaction, commandName, messageBody, reque
   ].join('\n');
 }
 
+function buildBrandBadgePayload(interaction) {
+  const manufacturer = String(getOptionValue(interaction, 'manufacturer') || '').trim();
+  const selectedBrand = BRAND_CHOICES.find(choice => choice.value === manufacturer);
+  const brandName = selectedBrand ? selectedBrand.name : manufacturer;
+  const safeBrandName = brandName || 'Unknown Brand';
+  const badgeUrl = `https://img.shields.io/badge/Favorite%20GT7%20Brand-${encodeURIComponent(safeBrandName)}-e10600?style=for-the-badge`;
+
+  return {
+    embeds: [
+      {
+        title: 'Your Favorite GT7 Brand Badge',
+        description: `🏁 **${safeBrandName}**`,
+        image: { url: badgeUrl },
+        color: 0xe10600,
+        footer: { text: 'Built with /brand' },
+      },
+    ],
+  };
+}
+
+function handleAutocomplete(interaction) {
+  const commandName = String(interaction?.data?.name || '').toLowerCase();
+
+  if (commandName !== BRAND_COMMAND.name.toLowerCase()) {
+    return new JsonResponse({
+      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+      data: { choices: [] },
+    });
+  }
+
+  const options = interaction?.data?.options || [];
+  const focusedOption = options.find(option => option.focused);
+
+  if (!focusedOption || focusedOption.name !== 'manufacturer') {
+    return new JsonResponse({
+      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+      data: { choices: [] },
+    });
+  }
+
+  const focusedValue = String(focusedOption.value || '').toLowerCase();
+  const filteredChoices = BRAND_CHOICES
+    .filter(choice => choice.name.toLowerCase().includes(focusedValue))
+    .slice(0, 25);
+
+  return new JsonResponse({
+    type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+    data: {
+      choices: filteredChoices,
+    },
+  });
+}
+
 async function processSupportIntake(interaction, env, commandName, requestKind) {
   const username = getInteractionUsername(interaction);
   const supportChannelId = await findSupportChannelId(interaction, env);
@@ -285,6 +340,10 @@ router.post('/', async (request, env, ctx) => {
     });
   }
 
+  if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
+    return handleAutocomplete(interaction);
+  }
+
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     let messagePayload;
     let supportIntakeCommand = null;
@@ -311,6 +370,11 @@ router.post('/', async (request, env, ctx) => {
           commandName: FEATUREREQUEST_COMMAND.name,
           requestKind: 'Feature Request',
         };
+        break;
+      }
+
+      case BRAND_COMMAND.name.toLowerCase(): {
+        messagePayload = buildBrandBadgePayload(interaction);
         break;
       }
 

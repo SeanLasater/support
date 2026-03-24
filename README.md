@@ -6,8 +6,11 @@ Custom Discord Bot in dev.
 - `/contact-support`
 - `/write-a-review`
 - `/feature-request`
+- `/brand`
 
-Each support command requires a `message` option and is intended for user input that should be routed to admins.
+Support commands (`/contact-support`, `/write-a-review`, `/feature-request`) require a `message` option and are intended for user input that should be routed to admins.
+
+`/brand` requires a `manufacturer` option and returns a GT7 brand badge to the user.
 
 ## Support Command Behavior
 

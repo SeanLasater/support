@@ -36,3 +36,17 @@ export const FEATUREREQUEST_COMMAND = {
     },
   ],
 };
+
+export const BRAND_COMMAND = {
+  name: 'brand',
+  description: 'Get a GT7 favorite brand badge.',
+  options: [
+    {
+      name: 'manufacturer',
+      description: 'Select your favorite GT7 manufacturer',
+      type: 3,
+      required: true,
+      autocomplete: true,
+    },
+  ],
+};
