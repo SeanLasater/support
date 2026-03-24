@@ -1,5 +1,5 @@
-// Server-side code for Cloudflare Worker handling Discord interactions and GT7 tuning calculations
-// This file defines the HTTP request handler, command processing logic, and physics calculations for the tune-downforce command.
+// Server-side code for Cloudflare Worker handling Discord interactions for support workflows.
+// This file defines the HTTP request handler, command processing logic, and Discord message routing.
 
 // It uses the itty-router library for routing and discord-interactions for request verification and response formatting.
 
@@ -16,10 +16,6 @@ import {
 } from 'discord-interactions';
 
 import { 
-  TUNEDOWNFORCE_COMMAND, 
-  TUNECAMBERTHRUST_COMMAND,
-  TUNETRANSMISSION_COMMAND, 
-  TUNEDIFFERENTIAL_COMMAND,
   RACERESTRICTIONS_COMMAND,
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
@@ -28,217 +24,9 @@ import {
 } from './commands.js';
 
 import { DAMAGE_CHOICES } from './damageData.js';
-import { analyzeDifferentialTuning } from './diffData.js';
-import { TRACK_CHOICES, TRANSMISSION_TUNINGS } from './transData.js';
+import { TRACK_CHOICES } from './transData.js';
 import { TIRE_CHOICES } from './downforceData.js';
-import { CARS } from './carData.js';
-import { calculateCamberThrustToeOut, calculateGripTune } from './tuning.js';
 import { JsonResponse } from './utils.js';
-
-// ──────────────────────────────────────────────────────────────
-// TUNE DOWNFORCE COMMAND HANDLER
-// This function processes the /tune-downforce command, performs physics calculations, and returns a formatted response embed.
-// ──────────────────────────────────────────────────────────────
-
-function handleTuneDownforceCommand(interaction) {
-  const { data } = interaction;
-  const options = Object.fromEntries((data.options ?? []).map(opt => [opt.name, opt.value]));
-  const weight = options.weight;
-  const front = options.front;
-  const tire = options.tire;
-
-  // Perform the core physics calculation with user inputs
-  const result = calculateGripTune(weight, front, tire);
-
-  // Check if calculation returned an error (e.g., invalid weight distribution)
-  if ('error' in result) {
-    return {
-      embeds: [
-        {
-          title: 'Invalid Input',
-          description: result.error,
-          color: 0xff0000,
-        },
-      ],
-    };
-  }
-
-  return {
-    embeds: [
-      {
-        title: 'GT7 Grip-Optimized Tuning',
-        color: 0xffd700,
-        fields: [
-          { name: 'Weight', value: `${weight.toLocaleString()} lbs`, inline: false },
-          { name: 'Balance', value: `${front}% Front │ ${100 - front}% Rear`, inline: false },
-          { name: 'Tire', value: `${result.tireDisplay} (Grip: ${result.grip}g)`, inline: false },
-          { name: '**FRONT**', value: `\`\`\`Downforce: ${result.frontDF.padStart(6)}\nNat Freq : ${result.frontNF} Hz\`\`\``, inline: true },
-          { name: '**REAR**', value: `\`\`\`Downforce: ${result.rearDF.padStart(6)}\nNat Freq : ${result.rearNF} Hz\`\`\``, inline: true },
-        ],
-        footer: { text: 'Pure grip focus • No speed trade-off • Values in lbs' },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-function handleTuneCamberThrustCommand(interaction) {
-  const { data } = interaction;
-  const options = Object.fromEntries((data.options ?? []).map(opt => [opt.name, opt.value]));
-  const tire = options.tire;
-  const camber = options.camber;
-
-  const result = calculateCamberThrustToeOut(tire, camber);
-
-  if ('error' in result) {
-    return {
-      embeds: [
-        {
-          title: 'Invalid Input',
-          description: result.error,
-          color: 0xff0000,
-        },
-      ],
-    };
-  }
-
-  return {
-    embeds: [
-      {
-        title: 'Camber Thrust Compensation',
-        color: 0x00b894,
-        fields: [
-          { name: 'Tire', value: result.tireDisplay, inline: false },
-          { name: 'Camber', value: `${result.camber}°`, inline: true },
-          { name: 'Optimal Toe-Out', value: `${result.toeOut}°`, inline: true },
-        ],
-        footer: { text: 'Toe-out recommendation helps offset camber thrust pull' },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-// ──────────────────────────────────────────────────────────────
-// TUNE DIFFERENTIAL COMMAND HANDLER
-// This function processes the /tune-differential command, analyzes the tuning characteristics, and returns a detailed embed with insights and sliding-scale metrics.
-// ──────────────────────────────────────────────────────────────
-
-function handleTuneDifferentialCommand(interaction) {
-  const { data } = interaction;
-  const options = Object.fromEntries((data.options ?? []).map(opt => [opt.name, opt.value]));
-  const initialTorque = options.initial_torque;
-  const accelerationSensitivity = options.acceleration_sensitivity;
-  const brakingSensitivity = options.braking_sensitivity;
-
-  // run the analytic helper to get a title, description, and normalized scales
-  const analysis = analyzeDifferentialTuning({
-    accelerationSensitivity,
-    initialTorque,
-    brakingSensitivity,
-  });
-
-  const isHighAccel = accelerationSensitivity > 30;
-  const isHighBraking = brakingSensitivity > 30;
-  let embedColor = 0xffd700;
-  if (isHighAccel && isHighBraking) embedColor = 0xff6b00;
-  else if (isHighAccel && !isHighBraking) embedColor = 0xff0000;
-  else if (!isHighAccel && isHighBraking) embedColor = 0x0066ff;
-  else embedColor = 0xffff00;
-
-  function scaleToNum(val) {
-    return Math.round(val * 20 - 10);
-  }
-
-  return {
-    embeds: [
-      {
-        title: analysis.title,
-        description: analysis.description,
-        color: embedColor,
-        fields: [
-          { name: 'Initial Torque', value: `${initialTorque.toFixed(1)}`, inline: true },
-          { name: 'Accel Sensitivity', value: `${accelerationSensitivity.toFixed(1)}`, inline: true },
-          { name: 'Braking Sensitivity', value: `${brakingSensitivity.toFixed(1)}`, inline: true },
-          { name: `**${analysis.scales.gripDrift.leftLabel} / ${analysis.scales.gripDrift.rightLabel}**`,
-            value: `\`\`\`${scaleToNum(analysis.scales.gripDrift.value)}\`\`\``, inline: false },
-          { name: `**${analysis.scales.underOver.leftLabel} / ${analysis.scales.underOver.rightLabel}**`,
-            value: `\`\`\`${scaleToNum(analysis.scales.underOver.value)}\`\`\``, inline: false },
-          { name: `**${analysis.scales.controlPlay.leftLabel} / ${analysis.scales.controlPlay.rightLabel}**`,
-            value: `\`\`\`${scaleToNum(analysis.scales.controlPlay.value)}\`\`\``, inline: false },
-          { name: `**${analysis.scales.brakeLock.leftLabel} / ${analysis.scales.brakeLock.rightLabel}**`,
-            value: `\`\`\`${scaleToNum(analysis.scales.brakeLock.value)}\`\`\``, inline: false },
-        ],
-        footer: { text: 'Key: Grip -10 / 10 Drift' },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-// ──────────────────────────────────────────────────────────────
-// TUNE TRANSMISSION COMMAND HANDLER
-// This function processes the /tune-transmission command, looks up track and car data, and returns a transmission tuning embed.
-// ──────────────────────────────────────────────────────────────
-
-function handleTuneTransmissionCommand(interaction) {
-  const { data } = interaction;
-  const options = Object.fromEntries((data.options ?? []).map(opt => [opt.name, opt.value]));
-  const trackValue = options.track;
-  const carValue = options.car;
-
-  // Look up track and car data
-  const trackData = TRANSMISSION_TUNINGS[trackValue];
-  const carData = CARS.find(car => car.value === carValue);
-
-  // Validate that both track and car were found
-  if (!trackData) {
-    return {
-      embeds: [{
-        title: 'Invalid Track',
-        description: `Track "${trackValue}" not found in transmission tuning database.`,
-        color: 0xff0000,
-      }],
-    };
-  }
-
-  if (!carData) {
-    return {
-      embeds: [{
-        title: 'Invalid Car',
-        description: `Car "${carValue}" not found in car database.`,
-        color: 0xff0000,
-      }],
-    };
-  }
-
-  // Find track name from TRACK_CHOICES
-  const trackName = TRACK_CHOICES.find(t => t.value === trackValue)?.name || trackValue;
-
-  // Build gear ratio fields
-  const gearFields = Object.entries(trackData.gears).map(([gear, ratio]) => ({
-    name: gear,
-    value: `\`${ratio.toFixed(3)}\``,
-    inline: true,
-  }));
-
-  return {
-    embeds: [{
-      title: 'GT7 Transmission Tuning',
-      color: 0x1e90ff,
-      fields: [
-        { name: 'Track', value: `**${trackName}**`, inline: true },
-        { name: 'Car', value: `**${carData.name}**`, inline: true },
-        { name: 'Drivetrain', value: `**${carData.drivetrain}**`, inline: true },
-        { name: 'Final Drive', value: `\`\`\`${trackData.finalDrive.toFixed(3)}\`\`\``, inline: false },
-        { name: 'Gear Ratios', value: '\u200b', inline: false },
-        ...gearFields,
-      ],
-      footer: { text: 'Optimize for track characteristics and car setup' },
-      timestamp: new Date().toISOString(),
-    }],
-  };
-}
 
 // ──────────────────────────────────────────────────────────────
 // RACE RESTRICTIONS COMMAND HANDLER
@@ -633,23 +421,6 @@ function handleAutocomplete(interaction) {
     });
   }
 
-  if (focusedOption.name === 'car') {
-    const focusedValue = focusedOption.value.toLowerCase();
-    const filtered = CARS
-      .filter(car => car.name.toLowerCase().includes(focusedValue))
-      .slice(0, 25);
-
-    return new JsonResponse({
-      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-      data: {
-        choices: filtered.map(car => ({
-          name: car.name,
-          value: car.value,
-        })),
-      },
-    });
-  }
-
   if (focusedOption.name === 'tyre') {
     const focusedValue = String(focusedOption.value || '').toLowerCase();
     const filtered = TIRE_CHOICES
@@ -725,26 +496,6 @@ router.post('/', async (request, env, ctx) => {
     let supportIntakeCommand = null;
 
     switch (interaction.data.name.toLowerCase()) {
-      case TUNEDOWNFORCE_COMMAND.name.toLowerCase(): {
-        messagePayload = handleTuneDownforceCommand(interaction);
-        break;
-      }
-
-      case TUNECAMBERTHRUST_COMMAND.name.toLowerCase(): {
-        messagePayload = handleTuneCamberThrustCommand(interaction);
-        break;
-      }
-
-      case TUNETRANSMISSION_COMMAND.name.toLowerCase(): {
-        messagePayload = handleTuneTransmissionCommand(interaction);
-        break;
-      }
-
-      case TUNEDIFFERENTIAL_COMMAND.name.toLowerCase(): {
-        messagePayload = handleTuneDifferentialCommand(interaction);
-        break;
-      }
-
       case RACERESTRICTIONS_COMMAND.name.toLowerCase(): {
         messagePayload = handleRaceRestrictionsCommand(interaction);
         break;

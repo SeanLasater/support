@@ -6,9 +6,6 @@ import {
   InteractionResponseFlags,
 } from 'discord-interactions';
 import {
-  TUNEDOWNFORCE_COMMAND,
-  TUNECAMBERTHRUST_COMMAND,
-  TUNEDIFFERENTIAL_COMMAND,
   CONTACTSUPPORT_COMMAND,
   WRITEAREVIEW_COMMAND,
   FEATUREREQUEST_COMMAND,
@@ -64,97 +61,6 @@ describe('Server', () => {
       const response = await server.fetch(request, env);
       const body = await response.json();
       expect(body.type).to.equal(InteractionResponseType.PONG);
-    });
-
-    it('should handle an TUNEDOWNFORCE command interaction', async () => {
-      const interaction = {
-        type: InteractionType.APPLICATION_COMMAND,
-        data: {
-          name: TUNEDOWNFORCE_COMMAND.name,
-        },
-      };
-
-      const request = {
-        method: 'POST',
-        url: new URL('/', 'http://discordo.example'),
-      };
-
-      const env = {};
-
-      verifyDiscordRequestStub.resolves({
-        isValid: true,
-        interaction: interaction,
-      });
-
-      const response = await server.fetch(request, env);
-      const body = await response.json();
-      expect(body.type).to.equal(
-        InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      );
-      expect(body.data.flags).to.equal(InteractionResponseFlags.EPHEMERAL);
-    });
-
-    it('should handle a TUNECAMBERTHRUST command interaction', async () => {
-      const interaction = {
-        type: InteractionType.APPLICATION_COMMAND,
-        data: {
-          name: TUNECAMBERTHRUST_COMMAND.name,
-          options: [
-            { name: 'tire', value: 'rm' },
-            { name: 'camber', value: 2.5 },
-          ],
-        },
-      };
-
-      const request = {
-        method: 'POST',
-        url: new URL('/', 'http://discordo.example'),
-      };
-
-      verifyDiscordRequestStub.resolves({
-        isValid: true,
-        interaction: interaction,
-      });
-
-      const response = await server.fetch(request, {});
-      const body = await response.json();
-      expect(body.type).to.equal(
-        InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      );
-      expect(body.data.flags).to.equal(InteractionResponseFlags.EPHEMERAL);
-    });
-
-    it('should handle a TUNEDIFFERENTIAL command interaction', async () => {
-      const interaction = {
-        type: InteractionType.APPLICATION_COMMAND,
-        data: {
-          name: TUNEDIFFERENTIAL_COMMAND.name,
-          options: [
-            { name: 'initial_torque', value: 10 },
-            { name: 'acceleration_sensitivity', value: 40 },
-            { name: 'braking_sensitivity', value: 20 },
-          ],
-        },
-      };
-
-      const request = {
-        method: 'POST',
-        url: new URL('/', 'http://discordo.example'),
-      };
-
-      const env = {};
-
-      verifyDiscordRequestStub.resolves({
-        isValid: true,
-        interaction: interaction,
-      });
-
-      const response = await server.fetch(request, env, {});
-      const body = await response.json();
-      expect(body.type).to.equal(
-        InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      );
-      expect(body.data.flags).to.equal(InteractionResponseFlags.EPHEMERAL);
     });
 
     it('should handle an unknown command interaction', async () => {

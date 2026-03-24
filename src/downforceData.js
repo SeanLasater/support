@@ -1,4 +1,4 @@
-// Tire choices for downforce tuning command
+// Tire choices used in race-related command options.
 export const TIRE_CHOICES = [
   { name: 'Comfort Hard', value: 'ch' },
   { name: 'Comfort Medium', value: 'cm' },

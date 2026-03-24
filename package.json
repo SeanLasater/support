@@ -1,7 +1,7 @@
 {
   "name": "awwbot",
   "version": "1.0.0",
-  "description": "Stig tuning Discord bot built on Cloudflare Workers",
+  "description": "Support-focused Discord bot built on Cloudflare Workers",
   "type": "module",
   "private": true,
   "main": "src/server.js",
